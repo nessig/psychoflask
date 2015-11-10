@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>{{ user["username"] }}'s page!</h1>
+<h2>About Me:</h2>
+<p>
+  {% if user["about_me"] %}
+  {{ user["about_me"] }}
+  {% endif %}
+  <br/>
+  {% if user == g.current_user %}
+  <a href="{{ url_for('edit') }}">Edit</a>
+  {% endif %}
+</p>
+
+<h2>Posts:</h2>
+{% for post in posts %}
+<h3>{{ post["title"] }}</h3>
+<p>{{ post["body"] }}</p>
+<br/>
+<br/>
+{% endfor %}
+
+{% endblock %}

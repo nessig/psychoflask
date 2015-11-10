@@ -3,7 +3,7 @@ from flask import Flask, render_template, g, redirect, url_for, flash, session
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
-from forms import LoginForm, RegisterForm
+from forms import LoginForm, RegisterForm, EditForm
 from functools import wraps
 
 # configuration
@@ -74,14 +74,18 @@ dbExecuteCommit(insertUserSQL, userData2)
 
 userId = dbExecuteFetch(selectIdFromUsernameSQL, ("nessig",))[0]
 postData1 = ("My First Post!", "This is the body of my first post!", userId)
+postData2 = ("My Second Post!", "This is the body of my second post!", userId)
+postData3 = ("My Third Post!", "This is the body of my third post!", userId)
 dbExecuteCommit(insertPostSQL, postData1)
+dbExecuteCommit(insertPostSQL, postData2)
+dbExecuteCommit(insertPostSQL, postData3)
 
 
 # login required decorator
 def login_required(f):
     @wraps(f)
     def wrap(*args, **kwargs):
-        if 'logged_in' in session:
+        if 'user_id' in session and session["user_id"] != None:
             return f(*args, **kwargs)
         else:
             flash('You need to login first.')
@@ -187,6 +191,42 @@ def logout():
     return redirect(url_for('index'))
 
 
+@app.route('/user/<username>')
+def user(username):
+    cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute('select * from users where username=%s',
+                    (username,))
+        user = cur.fetchone()
+        if user is not None:
+            cur.execute('select * from posts where author_id=%s',
+                        (user['id'],))
+            posts = cur.fetchall()
+            return render_template('user.html',
+                                   user=user,
+                                   posts=posts)
+        else:
+            flash("User does not exist.")
+    except psycopg2.DatabaseError, e:
+        flash('Error %s' % e)
+    cur.close()
+    return redirect(url_for('index'))
+
+
+@app.route('/edit', methods=['GET', 'POST'])
+@login_required
+def edit():
+    user = g.current_user
+    form = EditForm()
+    if form.validate_on_submit():
+        text = form.text.data
+        id = user["id"]
+        cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('update users set about_me=%s where id=%s', (text, id))
+        g.db.commit()
+        cur.close()
+        return redirect(url_for('user', username=user["username"]))
+    return render_template('edit.html', form=form)
 
 if __name__ == '__main__':
     app.run()

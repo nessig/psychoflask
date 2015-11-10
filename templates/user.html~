@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>{{ user["username"] }}'s page!</h1>
+{#
+{% for post in posts %}
+  {% if post["author_id"] == user["id"] %}
+  <li>Title: {{ post["title"] }}</li>
+  <li>Body: {{ post["body"] }}</li>
+  <li>Author ID: {{ post["author_id"] }}</li>
+  {% endif %}
+  {% endfor %}
+#}
+{% endblock %}

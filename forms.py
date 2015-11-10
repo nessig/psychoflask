@@ -1,5 +1,5 @@
 from flask_wtf import Form
-from wtforms import TextField, PasswordField
+from wtforms import TextField, PasswordField, TextAreaField
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
 
@@ -28,3 +28,6 @@ class RegisterForm(Form):
             DataRequired(), EqualTo('password', message='Passwords must match.')
         ]
     )
+
+class EditForm(Form):
+    text = TextAreaField('About me', validators=[DataRequired()])
