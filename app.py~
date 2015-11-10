@@ -1,0 +1,106 @@
+# app.py
+from flask import Flask, render_template, g
+# import db
+import psycopg2
+import psycopg2.extras
+from contextlib import closing
+
+
+# configuration
+DATABASE = 'flaskr'
+DEBUG = True
+SECRET_KEY = 'development key'
+USERNAME = 'nessig'
+PASSWORD = '123'
+
+DSN = "dbname=%s user=%s password=%s" % (DATABASE, USERNAME, PASSWORD)
+
+app = Flask(__name__)
+app.config.from_object(__name__)
+# do some other stuff
+# db.postgres_connection.init_app(app)
+
+
+def connect_db():
+    return psycopg2.connect(database=app.config['DATABASE'],
+                            user=app.config['USERNAME'],
+                            password=app.config['PASSWORD'])
+
+
+def init_db():
+    with closing(connect_db()) as conn, conn.cursor() as cursor:
+        with app.open_resource('query.sql', mode='r') as f:
+            cursor.execute(f.read())
+        conn.commit()
+
+
+insertUserSQL = """
+insert into users (username, email, password)
+values (%s, %s, %s);
+"""
+
+insertPostSQL = """
+insert into posts (title, body, author_id)
+values (%s, %s, %s);
+"""
+
+selectIdFromUsernameSQL = """
+select id from users where username=%s;
+"""
+
+userData1 = ("nessig", "nessig@mit.edu", "123")
+userData2 = ("nolan", "nolan@example.com", "123")
+# postData1 = ("My First Post!", "This is the body of my first post!", 1)
+
+
+init_db()
+
+
+def dbExecuteFetch(SQL, data):
+    with closing(connect_db()) as conn, conn.cursor() as cur:
+        cur.execute(SQL, data)
+        results = cur.fetchall()
+    return results
+
+
+def dbExecuteCommit(SQL, data):
+    with closing(connect_db()) as conn, conn.cursor() as cur:
+        cur.execute(SQL, data)
+        conn.commit()
+
+dbExecuteCommit(insertUserSQL, userData1)
+dbExecuteCommit(insertUserSQL, userData2)
+
+
+userId = dbExecuteFetch(selectIdFromUsernameSQL, ("nessig",))[0]
+postData1 = ("My First Post!", "This is the body of my first post!", userId)
+dbExecuteCommit(insertPostSQL, postData1)
+
+
+@app.before_request
+def before_request():
+    g.db = connect_db()
+    print "connected to :"
+    print g.db
+
+
+@app.teardown_request
+def teardown_request(exception):
+    db = getattr(g, 'db', None)
+    if db is not None:
+        db.close()
+        print "disconnected from:"
+        print db
+
+
+@app.route("/")
+def index():
+    cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute("select * from users;")
+    users = cur.fetchall()
+    cur.close()
+    return render_template("index.html",
+                           users=users)
+
+if __name__ == '__main__':
+    app.run()
