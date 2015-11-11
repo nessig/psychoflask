@@ -13,6 +13,7 @@ create table posts (
        id serial primary key,
        title varchar(30) not null,
        body varchar(400) not null,
+       pub_date timestamp,
        author_id integer references users (id)
 );
 

@@ -22,12 +22,18 @@
 {% endif %}
 {% endif %}
 
+{% if g.current_user == user %}
 {% include 'post.html' %}
+{% endif %}
 
 <h2>Posts:</h2>
 {% for post in posts %}
 <h3>{{ post["title"] }}</h3>
 <p>{{ post["body"] }}</p>
+<br/>
+{% if post["pub_date"] %}
+Published {{ post["pub_date"] | timesince}}
+{% endif %}
 <br/>
 <br/>
 {% endfor %}

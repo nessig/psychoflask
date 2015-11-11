@@ -3,6 +3,7 @@ from flask import Flask, render_template, g, redirect, url_for, flash, session
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
+from datetime import datetime
 from forms import LoginForm, RegisterForm, EditForm, PostForm
 from functools import wraps
 
@@ -19,6 +20,33 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 # do some other stuff
 # db.postgres_connection.init_app(app)
+
+@app.template_filter()
+def timesince(dt, default="just now"):
+    """
+    Returns string representing "time since" e.g.
+    3 days ago, 5 hours ago etc.
+    """
+
+    now = datetime.utcnow()
+    diff = now - dt
+    
+    periods = (
+        (diff.days / 365, "year", "years"),
+        (diff.days / 30, "month", "months"),
+        (diff.days / 7, "week", "weeks"),
+        (diff.days, "day", "days"),
+        (diff.seconds / 3600, "hour", "hours"),
+        (diff.seconds / 60, "minute", "minutes"),
+        (diff.seconds, "second", "seconds"),
+    )
+
+    for period, singular, plural in periods:
+        
+        if period:
+            return "%d %s ago" % (period, singular if period == 1 else plural)
+
+    return default
 
 
 def connect_db():
@@ -40,8 +68,8 @@ values (%s, %s, %s);
 """
 
 insertPostSQL = """
-insert into posts (title, body, author_id)
-values (%s, %s, %s);
+insert into posts (title, body, author_id, pub_date)
+values (%s, %s, %s,%s);
 """
 
 selectIdFromUsernameSQL = """
@@ -73,9 +101,9 @@ dbExecuteCommit(insertUserSQL, userData2)
 
 
 userId = dbExecuteFetch(selectIdFromUsernameSQL, ("nessig",))[0]
-postData1 = ("My First Post!", "This is the body of my first post!", userId)
-postData2 = ("My Second Post!", "This is the body of my second post!", userId)
-postData3 = ("My Third Post!", "This is the body of my third post!", userId)
+postData1 = ("My First Post!", "This is the body of my first post!", userId, datetime.utcnow())
+postData2 = ("My Second Post!", "This is the body of my second post!", userId, datetime.utcnow())
+postData3 = ("My Third Post!", "This is the body of my third post!", userId, datetime.utcnow())
 dbExecuteCommit(insertPostSQL, postData1)
 dbExecuteCommit(insertPostSQL, postData2)
 dbExecuteCommit(insertPostSQL, postData3)
@@ -109,19 +137,38 @@ def teardown_request(exception):
         print db
 
 
+# getFollowingPostsSQL = """
+# select * from posts
+# inner join followers
+# on (author_id=following)
+# where follower=%s
+# order by pub_date desc;
+# """
+
+
 @app.route("/")
+@login_required
 def index():
     cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cur.execute("select * from users;")
-    users = cur.fetchall()
-    posts = []
-    user_ids = [user["id"] for user in users]
-    cur.execute("select * from posts where author_id=ANY(%s)", (user_ids,))
+
+    getFollowingPostsSQL = """
+select users.username,posts.title,posts.body,posts.pub_date from users
+inner join posts
+inner join followers
+on (author_id=following)
+on (users.id=author_id)
+where follower=%s
+order by pub_date desc;
+"""
+    cur.execute(getFollowingPostsSQL, (g.current_user['id'],))
+    # users = cur.fetchall()
+    
+    # user_ids = [user["id"] for user in users]
+    # cur.execute("select * from posts where author_id=ANY(%s)", (user_ids,))
     posts = cur.fetchall()
     # print posts
     cur.close()
     return render_template("index.html",
-                           users=users,
                            posts=posts)
 
 
@@ -204,8 +251,8 @@ def user(username):
                 title = form.title.data
                 body = form.body.data
                 author_id = user["id"]
-                cur.execute('insert into posts (title,body,author_id) values (%s,%s,%s)',
-                            (title, body, author_id))
+                cur.execute('insert into posts (title,body,author_id,pub_date) values (%s,%s,%s,%s)',
+                            (title, body, author_id,datetime.utcnow()))
                 g.db.commit()
             isfollowing = is_following(g.current_user["id"], user["id"])
             cur.execute('select * from posts where author_id=%s',
