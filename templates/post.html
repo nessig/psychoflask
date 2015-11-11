@@ -1,0 +1,29 @@
+<h1>New Post:</h1>
+<br>
+<form class="form-signin" role="form" method="post" action="">
+  {{ form.csrf_token }}
+  <p>
+    {{ form.title(placeholder="title") }}
+    <span class="error">
+      {% if form.title.errors %}
+        {% for error in form.title.errors %}
+          {{ error }}
+        {% endfor %}
+      {% endif %}
+    </span>
+  </p>
+
+    <p>
+    {{ form.body(placeholder="body") }}
+    <span class="error">
+      {% if form.body.errors %}
+        {% for error in form.body.errors %}
+          {{ error }}
+        {% endfor %}
+      {% endif %}
+    </span>
+    </p>
+    
+  <button class="btn btn-sm btn-success" type="submit">Save</button>
+</form>
+

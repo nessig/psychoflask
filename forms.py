@@ -29,5 +29,11 @@ class RegisterForm(Form):
         ]
     )
 
+
 class EditForm(Form):
     text = TextAreaField('About me', validators=[DataRequired()])
+
+
+class PostForm(Form):
+    title = TextField('title', validators=[DataRequired()])
+    body = TextAreaField('title', validators=[DataRequired()])

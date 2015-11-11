@@ -3,7 +3,7 @@ from flask import Flask, render_template, g, redirect, url_for, flash, session
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
-from forms import LoginForm, RegisterForm, EditForm
+from forms import LoginForm, RegisterForm, EditForm, PostForm
 from functools import wraps
 
 # configuration
@@ -191,20 +191,31 @@ def logout():
     return redirect(url_for('index'))
 
 
-@app.route('/user/<username>')
+@app.route('/user/<username>', methods=['GET', 'POST'])
 def user(username):
+    form = PostForm()
     cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute('select * from users where username=%s',
                     (username,))
         user = cur.fetchone()
         if user is not None:
+            if form.validate_on_submit():
+                title = form.title.data
+                body = form.body.data
+                author_id = user["id"]
+                cur.execute('insert into posts (title,body,author_id) values (%s,%s,%s)',
+                            (title, body, author_id))
+                g.db.commit()
+            isfollowing = is_following(g.current_user["id"], user["id"])
             cur.execute('select * from posts where author_id=%s',
                         (user['id'],))
             posts = cur.fetchall()
             return render_template('user.html',
                                    user=user,
-                                   posts=posts)
+                                   posts=posts,
+                                   form=form,
+                                   isfollowing=isfollowing)
         else:
             flash("User does not exist.")
     except psycopg2.DatabaseError, e:
@@ -227,6 +238,85 @@ def edit():
         cur.close()
         return redirect(url_for('user', username=user["username"]))
     return render_template('edit.html', form=form)
+
+
+
+@app.route('/follow/<username>')
+@login_required
+def follow(username):
+    cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute('select * from users where username=%s',
+                    (username,))
+        user = cur.fetchone()
+        
+        if user is None:
+            flash("User %s could not be found" % username)
+            return redirect(url_for('index'))
+        if user == g.current_user:
+            flash('You can\'t follow yourself!')
+            return redirect(url_for('user', username=username))
+
+        cur.execute('select * from followers where follower=%s and following=%s;',
+                    (g.current_user["id"],user["id"]))
+        
+        u = cur.fetchone()
+        print u
+        if u is not None:
+            flash('Already following ' + username + '.')
+            return redirect(url_for('user', username=username))
+        cur.execute('insert into followers values (%s,%s);', (g.current_user["id"],user["id"]))
+        g.db.commit()
+        cur.close()
+        flash('You are now following ' + username + '!')
+    except psycopg2.DatabaseError, e:
+        flash('Error %s' % e)
+    return redirect(url_for('user', username=username))
+
+@app.route('/unfollow/<username>')
+@login_required
+def unfollow(username):
+    cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute('select * from users where username=%s',
+                    (username,))
+        user = cur.fetchone()
+        
+        if user is None:
+            flash("User %s could not be found" % username)
+            return redirect(url_for('index'))
+        if user == g.current_user:
+            flash('You can\'t unfollow yourself!')
+            return redirect(url_for('user', username=username))
+        cur.execute('select * from followers where follower=%s and following=%s;',
+                    (g.current_user["id"], user["id"]))
+        
+        u = cur.fetchone()
+        print u
+        if u is None:
+            flash('Already not following ' + username + '.')
+            return redirect(url_for('user', username=username))
+        cur.execute('delete from followers where follower=%s and following=%s;',
+                    (g.current_user["id"], user["id"]))
+        g.db.commit()
+        cur.close()
+        flash('You are no longer following ' + username + '!')
+    except psycopg2.DatabaseError, e:
+        flash('Error %s' % e)
+    return redirect(url_for('user', username=username))
+
+
+def is_following(id1, id2):
+    cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute('select * from followers where follower=%s and following=%s;',(id1,id2))
+    u = cur.fetchone()
+    cur.close()
+    if u is None:
+        return False
+    else:
+        return True
+    
+
 
 if __name__ == '__main__':
     app.run()

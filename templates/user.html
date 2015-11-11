@@ -13,6 +13,16 @@
   <a href="{{ url_for('edit') }}">Edit</a>
   {% endif %}
 </p>
+<!-- Find some way to see if you're already following that isn't really difficult! -->
+{% if g.current_user != user %}
+{% if isfollowing == True %}
+<a href="{{ url_for('unfollow', username=user['username']) }}">Unfollow Me!</a>
+{% else %}
+<a href="{{ url_for('follow', username=user['username']) }}">Follow Me!</a>
+{% endif %}
+{% endif %}
+
+{% include 'post.html' %}
 
 <h2>Posts:</h2>
 {% for post in posts %}

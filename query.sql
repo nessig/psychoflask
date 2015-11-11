@@ -10,8 +10,14 @@ create table users (
 
 drop table if exists posts;
 create table posts (
-  id serial primary key,
-  title varchar(30) not null,
-  body varchar(400) not null,
-  author_id integer references users (id)
+       id serial primary key,
+       title varchar(30) not null,
+       body varchar(400) not null,
+       author_id integer references users (id)
+);
+
+drop table if exists followers;
+create table followers (
+       follower int references users (id),
+       following int references users (id)
 );

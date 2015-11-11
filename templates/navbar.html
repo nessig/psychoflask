@@ -14,10 +14,9 @@
       <ul class="nav navbar-nav">
         <!-- <li class="active"><a href="">Home</a></li> -->
 	<li><a href="{{ url_for('index') }}">Home</a></li>
-{#	{% if g.current_user %}
-	<li><a href="{{ url_for('user', username = current_user.username) }}">{{ g.current_user["username"] }}</a></li>
+	{% if g.current_user %}
+	<li><a href="{{ url_for('user', username = g.current_user['username']) }}">{{ g.current_user["username"] }}</a></li>
 	{% endif %}
-	#}
 	
 	{% if g.current_user %}
         <li><a href="{{ url_for('logout') }}">Logout</a></li>
