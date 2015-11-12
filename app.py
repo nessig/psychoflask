@@ -19,7 +19,7 @@ PASSWORD = '123'
 
 DSN = "dbname=%s user=%s password=%s" % (DATABASE, USERNAME, PASSWORD)
 
-app = Flask(__name__,static_url_path='')
+app = Flask(__name__, static_url_path='')
 app.config.from_object(__name__)
 # do some other stuff
 # db.postgres_connection.init_app(app)
@@ -104,16 +104,10 @@ def teardown_request(exception):
 # """
 
 
-@app.route('/signUp')
-def signUp():
-    return render_template('signUp.html')
 
-
-@app.route('/signUpUser', methods=['POST'])
-def signUpUser():
-    user = request.form['username']
-    password = request.form['password']
-    return json.dumps({'status': 'OK', 'user': user, 'pass': password})
+@app.route("/d3")
+def d3():
+    return render_template('d3.html')
 
 
 @app.route('/feedData', methods=['POST'])
@@ -137,7 +131,6 @@ def feedData():
         """
         cur.execute(getFollowingPostsSQL, (g.current_user['id'], oldest))
         posts = cur.fetchall()
-        print posts
         
         if posts != []:
             oldest_pub_date = posts[-1]["pub_date"]
@@ -359,7 +352,7 @@ def follow(username):
                     (g.current_user["id"],user["id"]))
         
         u = cur.fetchone()
-        print u
+        
         if u is not None:
             flash('Already following ' + username + '.')
             return redirect(url_for('user', username=username))
@@ -390,7 +383,7 @@ def unfollow(username):
                     (g.current_user["id"], user["id"]))
         
         u = cur.fetchone()
-        print u
+        
         if u is None:
             flash('Already not following ' + username + '.')
             return redirect(url_for('user', username=username))

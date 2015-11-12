@@ -1,5 +1,6 @@
 from flask.ext.script import Manager
-
+import os
+import sys
 from app import app, init_db
 # app = Flask(__name__)
 # configure your app
@@ -51,6 +52,14 @@ from app import app, init_db
 # dbExecuteCommit(insertPostSQL, postData2)
 # dbExecuteCommit(insertPostSQL, postData3)
 
+# extra_dirs = ['static',]
+# extra_files = extra_dirs[:]
+# for extra_dir in extra_dirs:
+#     for dirname, dirs, files in os.walk(extra_dir):
+#         for filename in files:
+#             filename = os.path.join(dirname, filename)
+#             if os.path.isfile(filename):
+#                 extra_files.append(filename)
 
 manager = Manager(app)
 

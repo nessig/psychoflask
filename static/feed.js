@@ -1,5 +1,9 @@
-var value = 'first'
+var value = 'first';
+console.log("yo");
 $(window).scroll(function() {
+    console.log(value);
+    console.log(($(window).scrollTop()));
+    console.log($(document).height() - $(window).height());
     if (($(window).scrollTop() == $(document).height() - $(window).height()) && (value != "END"))  {
         // ajax call get data from server and append to the div
         console.log("hello")
