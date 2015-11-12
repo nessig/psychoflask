@@ -1,25 +1,28 @@
-from flask import Flask, render_template, g, redirect, url_for, flash, session
+from flask import Flask, render_template, g, redirect, url_for, flash, session, request
 # import db
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
 from datetime import datetime
-from forms import LoginForm, RegisterForm, EditForm, PostForm
+from forms import LoginForm, RegisterForm, EditForm, PostForm, SearchForm, CommentForm
 from functools import wraps
+
+### TODO: Add news feed scrolling and add comments
 
 # configuration
 DATABASE = 'flaskr'
 DEBUG = True
-SECRET_KEY = 'development key'
+SECRET_KEY = '\x03BSx\x8aoM0E\xb7 \xa5\xb3+\x9e\x83\x03A.\xa3i\xa1`\xf3'
 USERNAME = 'nessig'
 PASSWORD = '123'
 
 DSN = "dbname=%s user=%s password=%s" % (DATABASE, USERNAME, PASSWORD)
 
-app = Flask(__name__)
+app = Flask(__name__,static_url_path='')
 app.config.from_object(__name__)
 # do some other stuff
 # db.postgres_connection.init_app(app)
+
 
 @app.template_filter()
 def timesince(dt, default="just now"):
@@ -57,73 +60,27 @@ def connect_db():
 
 def init_db():
     with closing(connect_db()) as conn, conn.cursor() as cursor:
-        with app.open_resource('query.sql', mode='r') as f:
+        with app.open_resource('createdb.sql', mode='r') as f:
             cursor.execute(f.read())
         conn.commit()
-
-
-insertUserSQL = """
-insert into users (username, email, password)
-values (%s, %s, %s);
-"""
-
-insertPostSQL = """
-insert into posts (title, body, author_id, pub_date)
-values (%s, %s, %s,%s);
-"""
-
-selectIdFromUsernameSQL = """
-select id from users where username=%s;
-"""
-
-userData1 = ("nessig", "nessig@mit.edu", "123")
-userData2 = ("nolan", "nolan@example.com", "123")
-# postData1 = ("My First Post!", "This is the body of my first post!", 1)
-
-
-init_db()
-
-
-def dbExecuteFetch(SQL, data):
-    with closing(connect_db()) as conn, conn.cursor() as cur:
-        cur.execute(SQL, data)
-        results = cur.fetchall()
-    return results
-
-
-def dbExecuteCommit(SQL, data):
-    with closing(connect_db()) as conn, conn.cursor() as cur:
-        cur.execute(SQL, data)
-        conn.commit()
-
-dbExecuteCommit(insertUserSQL, userData1)
-dbExecuteCommit(insertUserSQL, userData2)
-
-
-userId = dbExecuteFetch(selectIdFromUsernameSQL, ("nessig",))[0]
-postData1 = ("My First Post!", "This is the body of my first post!", userId, datetime.utcnow())
-postData2 = ("My Second Post!", "This is the body of my second post!", userId, datetime.utcnow())
-postData3 = ("My Third Post!", "This is the body of my third post!", userId, datetime.utcnow())
-dbExecuteCommit(insertPostSQL, postData1)
-dbExecuteCommit(insertPostSQL, postData2)
-dbExecuteCommit(insertPostSQL, postData3)
 
 
 # login required decorator
 def login_required(f):
     @wraps(f)
     def wrap(*args, **kwargs):
-        if 'user_id' in session and session["user_id"] != None:
+        if 'user_id' in session and session["user_id"] is not None:
             return f(*args, **kwargs)
         else:
             flash('You need to login first.')
-            return redirect(url_for('login'))
+            return redirect(url_for('login', next=request.url))
     return wrap
 
 
 @app.before_request
 def before_request():
     g.db = connect_db()
+    g.search_form = SearchForm()
     print "connected to :"
     print g.db
 
@@ -152,24 +109,27 @@ def index():
     cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     getFollowingPostsSQL = """
-select users.username,posts.title,posts.body,posts.pub_date from users
-inner join posts
-inner join followers
-on (author_id=following)
-on (users.id=author_id)
-where follower=%s
-order by pub_date desc;
-"""
-    cur.execute(getFollowingPostsSQL, (g.current_user['id'],))
-    # users = cur.fetchall()
+    select users.username,posts.title,posts.body,posts.pub_date from users
+    inner join posts
+    inner join followers
+    on (author_id=following)
+    on (users.id=author_id)
+    where follower=%s
+    order by pub_date desc;
+    """
+    if g.current_user is not None:
+        cur.execute(getFollowingPostsSQL, (g.current_user['id'],))
+        # users = cur.fetchall()
     
-    # user_ids = [user["id"] for user in users]
-    # cur.execute("select * from posts where author_id=ANY(%s)", (user_ids,))
-    posts = cur.fetchall()
-    # print posts
-    cur.close()
-    return render_template("index.html",
+        # user_ids = [user["id"] for user in users]
+        # cur.execute("select * from posts where author_id=ANY(%s)", (user_ids,))
+        posts = cur.fetchall()
+        # print posts
+        cur.close()
+        return render_template("index.html",
                            posts=posts)
+    else:
+        return render_template("welcome.html")
 
 
 @app.route('/register', methods=["GET", "POST"])
@@ -239,14 +199,52 @@ def logout():
 
 
 @app.route('/user/<username>', methods=['GET', 'POST'])
-def user(username):
-    form = PostForm()
+@app.route('/user/<username>/post/<postid>', methods=['GET', 'POST'])
+def user(username, postid=None):
+    form = PostForm(prefix="form1")
+    formComment = CommentForm(prefix="form2")
     cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute('select * from users where username=%s',
                     (username,))
         user = cur.fetchone()
         if user is not None:
+            if postid is not None:
+                
+                if formComment.validate_on_submit():
+                    commenter_id = g.current_user["id"]
+                    comment_date = datetime.utcnow()
+                    comment_text = formComment.comment.data
+                    cur.execute('select id from posts where author_id=%s and title=%s;',
+                                (user["id"], postid))
+                    post_id = cur.fetchall()[0][0]
+                    formComment.comment.data = None
+                    cur.execute('insert into comments (comment_date,comment_text,commenter_id,post_id) values (%s,%s,%s,%s);',
+                                (comment_date,comment_text,commenter_id,post_id))
+                    g.db.commit()
+                    
+                    return redirect(url_for('user', username=user["username"], postid=postid))
+                cur.execute('select * from posts where author_id=%s and title=%s;',
+                            (user["id"], postid))
+                post = cur.fetchone()
+                commentsSQL = """
+                select comment_date,username,comment_text
+                from users
+                inner join comments
+                on (users.id=commenter_id)
+                where post_id=%s;
+                """
+                # cur.execute('select * from comments where post_id=%s order by comment_date desc;',
+                #             (post["id"],))
+                cur.execute(commentsSQL, (post["id"],))
+                comments = cur.fetchall()
+                cur.close()
+                return render_template('postpage.html',
+                                       formComment=formComment,
+                                       user=user,
+                                       post=post,
+                                       comments=comments)
+            
             if form.validate_on_submit():
                 title = form.title.data
                 body = form.body.data
@@ -254,8 +252,10 @@ def user(username):
                 cur.execute('insert into posts (title,body,author_id,pub_date) values (%s,%s,%s,%s)',
                             (title, body, author_id,datetime.utcnow()))
                 g.db.commit()
+                return redirect(url_for('user', username=user['username']))
+            
             isfollowing = is_following(g.current_user["id"], user["id"])
-            cur.execute('select * from posts where author_id=%s',
+            cur.execute('select * from posts where author_id=%s order by pub_date desc',
                         (user['id'],))
             posts = cur.fetchall()
             return render_template('user.html',
@@ -364,6 +364,83 @@ def is_following(id1, id2):
         return True
     
 
+@app.route('/search', methods=['POST'])
+@login_required
+def search():
+    if not g.search_form.validate_on_submit():
+        return redirect(url_for('index'))
+    return redirect(url_for('search_results', query=g.search_form.search.data))
 
-if __name__ == '__main__':
-    app.run()
+
+searchquery = """
+select * from posts
+where to_tsvector(title) @@ plainto_tsquery(%s)
+or to_tsvector(body) @@ plainto_tsquery(%s);
+"""
+
+    # searchquery = """
+# select post.* from posts post,
+# plainto_tsquery(%s) q
+# where q @@ (to_tsvector(title) ||  to_tsvector(body));
+# """
+
+
+# searchquery = """
+# select post.* from posts post,
+# plainto_tsquery(%s) q
+# where q @@ (to_tsvector(title) ||  to_tsvector(body));
+# """
+
+
+# searchquery = """
+# SELECT ts_headline(title, q) as title_headline,
+# ts_headline(body,q) as body_headline FROM(
+# select title,body,tsv,q
+# from posts, plainto_tsquery(%s) as q
+# WHERE (tsv @@ q)
+# ) as t1 ORDER BY ts_rank_cd(t1.tsv, plainto_tsquery(%s)) DESC LIMIT 5;
+# """
+
+def userFromAuthorID(id):
+    cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    query = "select * from users where id=%s"
+    cur.execute(query, (id,))
+    user = cur.fetchone()
+    return user
+
+
+@app.route('/search_results/<query>')
+@login_required
+def search_results(query):
+    cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    searchquery = """
+    select username,
+    title_headline,
+    body_headline,
+    pub_date
+    from users
+    inner join (SELECT author_id,pub_date,
+    ts_headline(title, q) as title_headline,
+    ts_headline(body,q,'MaxWords=6,MinWords=3,
+    MaxFragments=3, FragmentDelimiter=" ... "')
+    as body_headline
+    FROM(
+    select author_id,title,body,tsv,q,pub_date
+    from posts,plainto_tsquery(%s) as q
+    WHERE (tsv @@ q)
+    ) as t1 ORDER BY
+    ts_rank_cd(t1.tsv, plainto_tsquery(%s)) DESC LIMIT 5)
+    as foo
+    on (users.id=author_id);
+    """
+    cur.execute(searchquery, (query, query))
+    results = cur.fetchall()
+    # print results
+    cur.close()
+    return render_template('searchResults.html',
+                           results=results,
+                           query=query)
+
+
+# if __name__ == '__main__':
+#     app.run()

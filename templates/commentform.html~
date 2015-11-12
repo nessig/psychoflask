@@ -1,0 +1,14 @@
+<form class="form-signin" role="form" method="post" action="">
+  {{ form.csrf_token }}
+  <p>
+    {{ form.comment(placeholder="Comment") }}
+    <span class="error">
+      {% if form.text.errors %}
+        {% for error in form.text.errors %}
+          {{ error }}
+        {% endfor %}
+      {% endif %}
+    </span>
+  </p>
+  <button class="btn btn-sm btn-success" type="submit">Post</button>
+</form>

@@ -10,8 +10,42 @@ create table users (
 
 drop table if exists posts;
 create table posts (
-  id serial primary key,
-  title varchar(30) not null,
-  body varchar(400) not null,
-  author_id integer references users (id)
+       id serial primary key,
+       title varchar(80) not null,
+       body text not null,
+       pub_date timestamp,
+       author_id integer references users (id),
+       tsv tsvector
 );
+
+drop table if exists followers;
+create table followers (
+       follower int references users (id),
+       following int references users (id)
+);
+
+drop table if exists comments;
+create table comments (
+       id serial primary key,
+       comment_date timestamp,
+       comment_text text,
+       commenter_id int references users (id),
+       post_id int references posts (id)
+);
+
+CREATE FUNCTION posts_trigger() RETURNS trigger AS $$
+begin
+  new.tsv :=
+     setweight(to_tsvector('pg_catalog.english', coalesce(new.title,'')), 'A') ||
+     setweight(to_tsvector('pg_catalog.english', coalesce(new.body,'')), 'D');
+  return new;
+end
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tsvectorupdate BEFORE INSERT OR UPDATE
+    ON posts FOR EACH ROW EXECUTE PROCEDURE posts_trigger();
+
+-- INSERT INTO posts VALUES('title here1', 'the body text is here1');
+-- INSERT INTO posts VALUES('title here2', 'the body text is here2');
+-- INSERT INTO posts VALUES('title here3', 'the body text is here3');
+

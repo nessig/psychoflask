@@ -26,9 +26,11 @@
 {% include 'post.html' %}
 {% endif %}
 
+<hr/>
+
 <h2>Posts:</h2>
 {% for post in posts %}
-<h3>{{ post["title"] }}</h3>
+<a href="{{ url_for('user',username=user['username'] ,postid=post['title']) }}"><h3>{{ post['title'] }}</h3></a>
 <p>{{ post["body"] }}</p>
 <br/>
 {% if post["pub_date"] %}

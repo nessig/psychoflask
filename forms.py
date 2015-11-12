@@ -1,5 +1,5 @@
 from flask_wtf import Form
-from wtforms import TextField, PasswordField, TextAreaField
+from wtforms import TextField, PasswordField, TextAreaField, StringField
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
 
@@ -37,3 +37,10 @@ class EditForm(Form):
 class PostForm(Form):
     title = TextField('title', validators=[DataRequired()])
     body = TextAreaField('title', validators=[DataRequired()])
+
+
+class SearchForm(Form):
+    search = StringField('search', validators=[DataRequired()])
+
+class CommentForm(Form):
+    comment = TextAreaField('comment', validators=[DataRequired()])

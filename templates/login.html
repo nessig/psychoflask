@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<h1>Please login</h1>
+<h1>Please login or register <a href="{{ url_for('register') }}">Here</a></h1>
 <br>
 <form class="form-signin" role="form" method="post" action="">
   {{ form.csrf_token }}

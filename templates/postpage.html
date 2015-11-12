@@ -1,0 +1,100 @@
+{% extends 'base.html' %} {% block head %} {{ super() }}
+<style type="text/css">
+    .thumbnail {
+        padding: 0px;
+    }
+    
+    .panel {
+        position: relative;
+    }
+    
+    .panel>.panel-heading:after,
+    .panel>.panel-heading:before {
+        position: absolute;
+        top: 11px;
+        left: -16px;
+        right: 100%;
+        width: 0;
+        height: 0;
+        display: block;
+        content: " ";
+        border-color: transparent;
+        border-style: solid solid outset;
+        pointer-events: none;
+    }
+    
+    .panel>.panel-heading:after {
+        border-width: 7px;
+        border-right-color: #f7f7f7;
+        margin-top: 1px;
+        margin-left: 2px;
+    }
+    
+    .panel>.panel-heading:before {
+        border-right-color: #ddd;
+        border-width: 8px;
+    }
+</style>
+{% endblock %} {% block content %}
+
+
+
+<div class="container">
+    <div class="row">
+        <div class="col-xs-12">
+            <br/>
+            <h1>{{ post["title"] }}</h1>
+            <br/>
+            <p>{{ post["body"] }}</p>
+            <br/>
+        </div>
+    </div>
+          <div class="row">
+        <div class="col-sm-12">
+            <a href="{{ url_for('user',username=user['username']) }}">
+                <strong>{{ user['username'] }}</strong>
+            </a>
+            <span class="text-muted">posted {{ post['pub_date'] | timesince}}</span>
+        </div>
+        <!-- /col-sm-12 -->
+    </div>
+	  <!-- /row -->
+	  <hr/>
+    <br/>
+    <div class="row">
+        <div class="col-xs-12">
+            {% include 'commentform.html' %}
+        </div>
+    </div>
+    <br/>
+    <br/> {% for comment in comments %}
+    <div class="row">
+        <div class="col-sm-1">
+            <div class="thumbnail">
+                <a href="{{ url_for('user',username=comment['username']) }}">
+                    <img class="img-responsive user-photo" src="{{ url_for('static', filename='profile.svg') }}">
+                </a>
+            </div>
+            <!-- /thumbnail -->
+        </div>
+        <!-- /col-sm-1 -->
+        <div class="col-sm-5">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                  <a href="{{ url_for('user',username=comment['username']) }}"><h3>{{ comment["username"] }}</h3></a>
+		  <span class="text-muted">posted {{ comment['comment_date'] | timesince}}</span>
+                </div>
+                <div class="panel-body">
+		  {{ comment['comment_text'] }}
+                </div>
+                <!-- /panel-body -->
+            </div>
+            <!-- /panel panel-default -->
+        </div>
+        <!-- /col-sm-5 -->
+    </div>
+    <!-- /row -->
+    {% endfor %}
+</div>
+
+{% endblock %}

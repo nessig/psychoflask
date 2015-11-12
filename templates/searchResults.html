@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block head %}
+{{ super() }}
+<style type="text/css">
+    b {
+        color: #336699;
+    }
+</style>
+{% endblock %}
+{% block content %}
+
+<h1>Search Results for <b>{{ query }}</b></h1>
+<br/>
+{% for result in results %}
+<div class="container">
+    <div class="row">
+        <div class="col-sm-12">
+          <a href="{{ url_for('user',username=result['username']) }}">
+	      <strong>{{ result['username'] }}</strong>
+	  </a>
+	  <span class="text-muted">posted {{ result['pub_date'] | timesince}}</span>
+        </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6 col-sm-offset-1">
+	<h3>{{ result["title_headline"] | safe }}</h3>
+	<p>{{ result["body_headline"] | safe }}</p>
+      </div>
+    </div>
+    <br/>
+</div>
+{% endfor %}
+{% endblock %}

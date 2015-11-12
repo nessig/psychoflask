@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block head %}
+{{ super() }}
+<style type="text/css">
+  p {  position: absolute; left: 40px;}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12">
+      <h2>{{ post["title"] }}</h2>
+      <br/>
+      <p>{{ post["body"] }}</p>
+      <br/>
+      <br/>
+      <i>Published {{ post['pub_date'] | timesince}}</i>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
