@@ -1,7 +1,8 @@
-from flask import Flask, render_template, g, redirect, url_for, flash, session, request
+from flask import Flask, render_template, g, redirect, url_for, flash, session, request, json
 # import db
 import psycopg2
 import psycopg2.extras
+from dateutil import parser
 from contextlib import closing
 from datetime import datetime
 from forms import LoginForm, RegisterForm, EditForm, PostForm, SearchForm, CommentForm
@@ -103,11 +104,56 @@ def teardown_request(exception):
 # """
 
 
+@app.route('/signUp')
+def signUp():
+    return render_template('signUp.html')
+
+
+@app.route('/signUpUser', methods=['POST'])
+def signUpUser():
+    user = request.form['username']
+    password = request.form['password']
+    return json.dumps({'status': 'OK', 'user': user, 'pass': password})
+
+
+@app.route('/feedData', methods=['POST'])
+def feedData():
+    if request.method == "POST":
+        
+        oldest = request.form["oldest"]
+        if oldest == "first":
+            oldest = session["oldest_pub_date"]
+        cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        getFollowingPostsSQL = """
+        select users.username,posts.title,posts.body,posts.pub_date from users
+        inner join posts
+        inner join followers
+        on (author_id=following)
+        on (users.id=author_id)
+        where follower=%s and pub_date < %s
+        order by pub_date desc
+        limit 3;
+        """
+        cur.execute(getFollowingPostsSQL, (g.current_user['id'], oldest))
+        posts = cur.fetchall()
+        print posts
+        
+        if posts != []:
+            oldest_pub_date = posts[-1]["pub_date"]
+        else:
+            oldest_pub_date = "END"
+        # return json.dumps({'status': 'OK', 'posts': posts, 'oldest_pub_date': oldest_pub_date})
+        posttemp = render_template("ajaxindex.html", posts=posts)
+        
+        return json.dumps({'status': 'OK', 'posts': posttemp, 'oldest_pub_date': oldest_pub_date})
+    
+
 @app.route("/")
 @login_required
 def index():
     cur = g.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
+    
     getFollowingPostsSQL = """
     select users.username,posts.title,posts.body,posts.pub_date from users
     inner join posts
@@ -115,7 +161,8 @@ def index():
     on (author_id=following)
     on (users.id=author_id)
     where follower=%s
-    order by pub_date desc;
+    order by pub_date desc
+    limit 5;
     """
     if g.current_user is not None:
         cur.execute(getFollowingPostsSQL, (g.current_user['id'],))
@@ -125,6 +172,10 @@ def index():
         # cur.execute("select * from posts where author_id=ANY(%s)", (user_ids,))
         posts = cur.fetchall()
         # print posts
+        if posts != []:
+            session["oldest_pub_date"] = posts[-1]["pub_date"]
+        else:
+            session["oldest_pub_date"] = "END"
         cur.close()
         return render_template("index.html",
                            posts=posts)
