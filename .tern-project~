@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "requirejs": {
+      "paths": null,
+      "baseURL": "./static/d3/d3.js"
+    }
+  },
+  "loadEagerly": [
+  ],
+  "libs": [
+    "jquery",
+    "d3"
+  ]
+}
